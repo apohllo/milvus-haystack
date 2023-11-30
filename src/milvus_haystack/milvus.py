@@ -283,16 +283,42 @@ class MilvusDocumentStore(BaseDocumentStore):
                 doc.embedding = embed
                 res_docs.append(doc)  
             return res_docs
-        res = self.client.query(
-            collection_name=index,
-            filter = filters,
-            output_fields=["*"]
-        )
+        
+        results = []
+        if(batch_size):
+            if(batch_size <= 0):
+                raise ValueError("The batch size have to be larger than 0")
+
+            total_docs = self.get_document_count(
+                filters = filters,
+                index = index
+                )
+
+            partitions_count = total_docs // batch_size
+            if(total_docs % batch_size != 0):
+                partitions_count += 1
+
+            for _ in range(partitions_count):
+                res = self.client.query(
+                    collection_name=index,
+                    filter = filters,
+                    output_fields=["*"]
+                )
+                results.append(res)
+        else:
+            res = self.client.query(
+                collection_name=index,
+                filter = filters,
+                output_fields=["*"]
+            )
+            results.append(res)
+
         res_docs = []
-        for hit in res:
-            hit.pop(EMPTY_FIELD, None)
-            hit.pop(VECTOR_FIELD, None)
-            res_docs.append(Document.from_dict(hit))
+        for res in results:
+            for hit in res:
+                hit.pop(EMPTY_FIELD, None)
+                hit.pop(VECTOR_FIELD, None)
+                res_docs.append(Document.from_dict(hit))
         return res_docs
 
     # Updated
