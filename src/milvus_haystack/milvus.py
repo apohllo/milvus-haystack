@@ -245,11 +245,6 @@ class MilvusDocumentStore(BaseDocumentStore):
         if headers:
             raise NotImplementedError("MilvusDocumentStore does not support headers.")
 
-        if batch_size is not None:
-            logger.warn(
-                "The parameter batch_size is not supported, loading all results."
-            )
-
         index = index or self.index
         return_embedding = return_embedding or self.return_embedding
 
@@ -298,11 +293,13 @@ class MilvusDocumentStore(BaseDocumentStore):
             if(total_docs % batch_size != 0):
                 partitions_count += 1
 
-            for _ in range(partitions_count):
+            for partition_idx in range(partitions_count):
                 res = self.client.query(
                     collection_name=index,
                     filter = filters,
-                    output_fields=["*"]
+                    output_fields=["*"],
+                    limit = batch_size,
+                    offset = batch_size * partition_idx,
                 )
                 results.append(res)
         else:
@@ -922,7 +919,7 @@ class MilvusDocumentStore(BaseDocumentStore):
         index = index or self.index
 
         documents = self.get_all_documents(
-            index=index, filters=filters, return_embedding=False
+            index=index, filters=filters, return_embedding=False, batch_size=1000
         )
 
         for doc in documents:
