@@ -290,11 +290,16 @@ class MilvusDocumentStore(BaseDocumentStore):
                 index = index
                 )
 
+            print(f"Total documents: {total_docs}")
+
             partitions_count = total_docs // batch_size
             if(total_docs % batch_size != 0):
                 partitions_count += 1
 
+            print(f"Batch size: {batch_size}, partitions: {partitions_count}")
+
             for partition_idx in range(partitions_count):
+                print(f"Limit: {batch_size}, offset: {batch_size * partition_idx}")
                 res = self.client.query(
                     collection_name=index,
                     filter = filters,
