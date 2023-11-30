@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any, Dict, Generator, List, Optional, Set, Union
+from pymilvus import Collection, list_collections, connections
 
 import numpy as np
 
@@ -106,6 +107,7 @@ class MilvusDocumentStore(BaseDocumentStore):
             raise ValueError(
                 "The Milvus document store can currently only support dot_product, cosine, and euclidean metrics. "
             )
+        self.uri = uri
         self.client = MilvusClient(uri=uri, token=api_key, user=user, password=password)
         self._create_collection(index, recreate_index)
 
@@ -280,48 +282,39 @@ class MilvusDocumentStore(BaseDocumentStore):
                 res_docs.append(doc)  
             return res_docs
         
-        results = []
+        res_docs = []
         if(batch_size):
             if(batch_size <= 0):
                 raise ValueError("The batch size have to be larger than 0")
+            
+            connections.connect('default', uri=self.uri)
+            iterator = Collection(index).query_iterator(
+                batch_size = batch_size,
+                output_fields=["*"],
+                expr = filters
+            )
 
-            total_docs = self.get_document_count(
-                filters = original_filters,
-                index = index
-                )
+            while True:
+                res = iterator.next()
+                if(len(res) == 0):
+                    iterator.close()
+                    break
+                for doc in res:
+                    doc.pop(EMPTY_FIELD, None)
+                    doc.pop(VECTOR_FIELD, None)
+                    res_docs.append(Document.from_dict(doc))
 
-            print(f"Total documents: {total_docs}")
-
-            partitions_count = total_docs // batch_size
-            if(total_docs % batch_size != 0):
-                partitions_count += 1
-
-            print(f"Batch size: {batch_size}, partitions: {partitions_count}")
-
-            for partition_idx in range(partitions_count):
-                print(f"Limit: {batch_size}, offset: {batch_size * partition_idx}")
-                res = self.client.query(
-                    collection_name=index,
-                    filter = filters,
-                    output_fields=["*"],
-                    limit = batch_size,
-                    offset = batch_size * partition_idx,
-                )
-                results.append(res)
         else:
             res = self.client.query(
                 collection_name=index,
                 filter = filters,
                 output_fields=["*"]
             )
-            results.append(res)
-
-        res_docs = []
-        for res in results:
             for hit in res:
                 hit.pop(EMPTY_FIELD, None)
                 hit.pop(VECTOR_FIELD, None)
                 res_docs.append(Document.from_dict(hit))
+
         return res_docs
 
     # Updated
