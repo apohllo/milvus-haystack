@@ -490,10 +490,11 @@ class MilvusDocumentStore(BaseDocumentStore):
                 else None
             )
         
-        if filters is not None:
-            filters += " and " + EMPTY_FIELD + " in [0]"
-        else:
-            filters = EMPTY_FIELD + " in [0]"
+        #if filters is not None:
+        #    filters += " and " + EMPTY_FIELD + " in [0]"
+        #else:
+        #    filters = EMPTY_FIELD + " in [0]"
+
 
 
         res = self.client.search(
