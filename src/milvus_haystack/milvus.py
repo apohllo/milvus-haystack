@@ -252,6 +252,7 @@ class MilvusDocumentStore(BaseDocumentStore):
             self._create_collection(index)
             return []
 
+        original_filters = filters
         filters = (
             LogicalFilterClause.parse(filters).convert_to_milvus() if filters else None
         )
@@ -285,7 +286,7 @@ class MilvusDocumentStore(BaseDocumentStore):
                 raise ValueError("The batch size have to be larger than 0")
 
             total_docs = self.get_document_count(
-                filters = filters,
+                filters = original_filters,
                 index = index
                 )
 
